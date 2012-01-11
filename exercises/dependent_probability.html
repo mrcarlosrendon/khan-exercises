@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html data-require="math">
 <head>
-	<meta charset="UTF-8" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<title>Dependent probability</title>
 	<script src="../khan-exercise.js"></script>
 
@@ -51,7 +51,7 @@
 			<var id="UNFAIR_HEADS_DECIMAL_FORMULA">
 				(function() {
 					var uhdf = DECIMAL_CHANCE_UNFAIR_HEADS.toString()
-					for (var i = 0; i < NUM_FLIPS - 1; i++) {
+					for (var i = 0; i &lt; NUM_FLIPS - 1; i++) {
 						uhdf += " \\times " + DECIMAL_CHANCE_UNFAIR_HEADS;
 					}
 					return uhdf;
@@ -60,7 +60,7 @@
 			<var id="UNFAIR_HEADS_PERCENT_FORMULA">
 				(function() {
 					var uhpf = PERCENT_CHANCE_UNFAIR_HEADS + "\\%";
-					for (var i = 0; i < NUM_FLIPS - 1; i++) {
+					for (var i = 0; i &lt; NUM_FLIPS - 1; i++) {
 						uhpf += " \\times " + PERCENT_CHANCE_UNFAIR_HEADS + "\\%";
 					}
 					return uhpf;
@@ -70,7 +70,7 @@
 			<var id="FAIR_HEADS_DECIMAL_FORMULA">
 				(function() {
 					var fhdf = DECIMAL_CHANCE_FAIR_HEADS.toString();
-					for (var i = 0; i < NUM_FLIPS - 1; i++) {
+					for (var i = 0; i &lt; NUM_FLIPS - 1; i++) {
 						fhdf += " \\times " + DECIMAL_CHANCE_FAIR_HEADS;
 					}
 					return fhdf;
@@ -89,8 +89,8 @@
 		<div class="problems">
 			<div>
 				<p class="problem">You have <code><var>NUM_COINS</var></code> coins in a bag. <code><var>NUM_UNFAIR_COINS</var></code> of them are unfair in that they have a <code><var>PERCENT_CHANCE_UNFAIR_HEADS</var>\%</code> chance of coming up heads when flipped (the rest are fair coins). You randomly choose one coin from the bag and flip it <code><var>NUM_FLIPS</var></code> times.</p>
-				<p class="question">What is the percent probability of getting <code><var>NUM_FLIPS</var></code> heads? Round your answer to the nearest hundredth of a percent.</p>
-				<p class="solution" data-forms="percent"><var>ANSWER</var></p>
+				<p class="question">What is the probability, written as a percentage, of getting <code><var>NUM_FLIPS</var></code> heads? Round your answer to the nearest hundredth of a percent.</p>
+				<p class="solution" data-forms="percent" data-max-error="0.01"><var>ANSWER</var></p>
 			</div>
 		</div>
 

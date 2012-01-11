@@ -12,15 +12,25 @@ jQuery.extend( KhanUtil, {
 			conjunction = "and";
 		}
 
-		if ( array.length == 0 ) {
+		if ( array.length === 0 ) {
 			return "";
-		} else if ( array.length == 1 ) {
+		} else if ( array.length === 1 ) {
 			return array[0];
-		} else if ( array.length == 2 ) {
+		} else if ( array.length === 2 ) {
 			return array[0] + " " + conjunction + " " + array[1];
 		} else {
 			return array.slice(0, -1).join(", ") + ", " + conjunction + " " + array[ array.length - 1 ];
 		}
+	},
+
+	toSentenceTex: function( array, conjunction, highlight, highlightClass ) {
+		var wrapped = jQuery.map( array, function( elem ) {
+			if ( ( jQuery.isFunction( highlight ) && highlight( elem ) ) || ( highlight !== undefined && elem === highlight ) ) {
+				return "<code class='" + highlightClass + "'>" + elem + "</code>";
+			}
+			return "<code>" + elem + "</code>";
+		});
+		return KhanUtil.toSentence( wrapped, conjunction );
 	},
 
 	// pluralization helper.  There are five signatures
@@ -44,7 +54,8 @@ jQuery.extend( KhanUtil, {
 			'person': 'people',
 			'is': 'are',
 			'was': 'were',
-			'square foot': 'square feet'
+			'square foot': 'square feet',
+			'tomato': 'tomatoes'
 		};
 
 		var pluralizeWord = function(word) {
@@ -54,12 +65,13 @@ jQuery.extend( KhanUtil, {
 
 			// determine if our word is all caps.  If so, we'll need to
 			// re-capitalize at the end
-			var isUpperCase = (word.toUpperCase() == word);
+			var isUpperCase = (word.toUpperCase() === word);
 			var oneOff = oneOffs[word.toLowerCase()];
 			var words = word.split(/\s+/);
 
 			// first handle simple one-offs
-			if ( oneOff ) {
+			// ({}).watch is a function in Firefox, blargh
+			if ( typeof oneOff === "string" ) {
 				return oneOff;
 			}
 
@@ -67,7 +79,7 @@ jQuery.extend( KhanUtil, {
 			else if ( words.length > 1 ) {
 				// for 3-word phrases where the middle word is 'in' or 'of',
 				// pluralize the first word
-				if ( words.length == 3 && /\b(in|of)\b/i.test(words[1]) ) {
+				if ( words.length === 3 && /\b(in|of)\b/i.test(words[1]) ) {
 					words[0] = KhanUtil.plural( words[0] );
 				}
 
@@ -119,7 +131,7 @@ jQuery.extend( KhanUtil, {
 
 				return value + " " + arg1;
 			} else if ( typeof value === "string" ) {
-				var plural = pluralizeWord(value)
+				var plural = pluralizeWord(value);
 				if ( typeof arg1 === "string" && arguments.length === 3 ) {
 					plural = arg1;
 					arg1 = arg2;
@@ -287,6 +299,16 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 		"pink"
 	]);
 
+	var schools = KhanUtil.shuffle([
+		"Loyola",
+		"Gardner Bullis",
+		"Almond",
+		"Covington",
+		"Springer",
+		"Santa Rita",
+		"Oak"
+	]);
+
 	var clothes = KhanUtil.shuffle([
 		"hat",
 		"pair of pants",
@@ -310,6 +332,29 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 		"right"
 	]);
 
+	var shirtStyles = KhanUtil.shuffle([
+		"long-sleeved",
+		"short-sleeved"
+	]);
+
+	var animals = KhanUtil.shuffle([
+		"alligator",
+		"anteater",
+		"bear",
+		"elephant",
+		"gorilla",
+		"lion",
+		"lizard",
+		"meerkat",
+		"porcupine",
+		"seal",
+		"sloth",
+		"snake",
+		"tiger",
+		"turtle",
+		"zebra"
+	]);
+
 	var farmers = KhanUtil.shuffle([
 		{farmer:"farmer", crops:KhanUtil.shuffle(["tomato", "potato", "carrot", "bean", "corn stalk"]), field:"field"},
 		{farmer:"gardener", crops:KhanUtil.shuffle(["rose", "tulip", "daisy", "iris", "lily"]), field:"garden"}
@@ -329,7 +374,7 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 
 	var indefiniteArticle = function(word) {
 		var vowels = ['a', 'e', 'i', 'o', 'u'];
-		if ( vowels.indexOf( word[0].toLowerCase() ) > -1 ) {
+		if ( _(vowels).indexOf( word[0].toLowerCase() ) > -1 ) {
 			return 'An ' + word;
 		}
 		return 'A ' + word;
@@ -345,30 +390,30 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 		},
 
 		he: function( i ) {
-			return people[i - 1][1] == "m" ? "he" : "she";
+			return people[i - 1][1] === "m" ? "he" : "she";
 		},
 
 		He: function( i ) {
-			return people[i - 1][1] == "m" ? "He" : "She";
+			return people[i - 1][1] === "m" ? "He" : "She";
 		},
 
 		him: function( i ) {
-			return people[i - 1][1] == "m" ? "him" : "her";
+			return people[i - 1][1] === "m" ? "him" : "her";
 		},
 
 		his: function( i ) {
-			return people[i - 1][1] == "m" ? "his" : "her";
+			return people[i - 1][1] === "m" ? "his" : "her";
 		},
 
 		His: function( i ) {
-			return people[i - 1][1] == "m" ? "His" : "Her";
+			return people[i - 1][1] === "m" ? "His" : "Her";
 		},
 
-		A: function(word) {
+		An: function(word) {
 			return indefiniteArticle(word);
 		},
 
-		a: function(word) {
+		an: function(word) {
 			return indefiniteArticle(word).toLowerCase();
 		},
 
@@ -428,6 +473,10 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 			return timesofday[i - 1];
 		},
 
+		school: function( i ) {
+			return schools[i - 1];
+		},
+
 		clothing: function( i ) {
 			return clothes[i - 1];
 		},
@@ -482,7 +531,14 @@ jQuery.fn[ "word-problemsLoad" ] = function() {
 
 		side: function( i ) {
 			return sides[i - 1];
-		}
+		},
 
+		shirtStyle: function( i ) {
+			return shirtStyles[i - 1];
+		},
+
+		animal: function( i ) {
+			return animals[i - 1];
+		}
 	});
 };

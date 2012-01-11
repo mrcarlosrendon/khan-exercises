@@ -18,11 +18,6 @@ jQuery.tmpl = {
 		"data-if": function( elem, value ) {
 			var $elem = jQuery( elem );
 
-			// Check if the attribute should be deleted
-			if ( $elem.data( "toDelete" ) ) {
-				$elem.removeAttr( "data-if" ).removeData( "if" );
-			}
-
 			value = value && jQuery.tmpl.getVAR( value );
 
 			// Save the result of this data-if in the next sibling for data-else-if and data-else
@@ -36,11 +31,6 @@ jQuery.tmpl = {
 
 		"data-else-if": function( elem, value ) {
 			var $elem = jQuery( elem );
-
-			// Check if the attribute should be deleted
-			if ( $elem.data( "toDelete" ) ) {
-				$elem.removeAttr( "data-else-if" ).removeData( "elseIf" );
-			}
 
 			var lastCond = $elem.data( "lastCond" );
 
@@ -59,11 +49,6 @@ jQuery.tmpl = {
 		"data-else": function( elem ) {
 			var $elem = jQuery( elem );
 
-			// Check if the attribute should be deleted
-			if ( $elem.data( "toDelete" ) ) {
-				$elem.removeAttr( "data-else" ).removeData( "else" );
-			}
-
 			if ( $elem.data( "lastCond" ) ) {
 				// Delete the element if the data-if of the preceding element was true
 				return [];
@@ -76,11 +61,22 @@ jQuery.tmpl = {
 			// Remove the data-each attribute so it doesn't end up in the generated elements
 			jQuery( elem ).removeAttr( "data-each" );
 
+			// HINT_COUNT times
+			// HINT_COUNT times as INDEX
+			if ( (match = /^(.+) times(?: as (\w+))?$/.exec( value )) ) {
+				var times = jQuery.tmpl.getVAR( match[1] );
+
+				return {
+					items: jQuery.map( new Array( times ), function ( e, i ) { return i; } ),
+					value: match[2],
+					oldValue: VARS[ match[2] ]
+				}
+
 			// Extract the 1, 2, or 3 parts of the data-each attribute, which could be
 			//   - items
 			//   - items as value
 			//   - items as pos, value
-			if ( (match = /^(.*?)(?: as (?:(\w+), )?(\w+))?$/.exec( value )) ) {
+			} else if ( (match = /^(.*?)(?: as (?:(\w+), )?(\w+))?$/.exec( value )) ) {
 				// See "if ( ret.items )" in traverse() for the other half of the data-each code
 				return {
 					// The collection which we'll iterate through
@@ -123,13 +119,13 @@ jQuery.tmpl = {
 			if ( name ) {
 
 				// Utility function for VARS[ name ] = value, warning if the name overshadows a KhanUtil property
-				function setVAR( name, value ) {
+				var setVAR = function( name, value ) {
 					if ( KhanUtil[ name ] ) {
 						Khan.error( "Defining variable '" + name + "' overwrites utility property of same name." );
 					}
 
 					VARS[ name ] = value;
-				}
+				};
 
 				// Destructure the array if appropriate
 				if ( name.indexOf( "," ) !== -1 ) {
@@ -189,7 +185,7 @@ jQuery.tmpl = {
 						MathJax.Hub.Queue([ "Typeset", MathJax.Hub, elem ]);
 					}
 				} else {
-					MathJax.Hub.Reprocess( elem );
+					MathJax.Hub.Queue([ "Reprocess", MathJax.Hub, elem ]);
 				}
 			};
 		}
@@ -253,7 +249,7 @@ if ( typeof KhanUtil !== "undefined" ) {
 // Reinitialize VARS for each problem
 jQuery.fn.tmplLoad = function( problem, info ) {
 	VARS = {};
-	
+
 	// Check to see if we're in test mode
 	if ( info.testMode ) {
 		// Expose the variables if we're in test mode
@@ -336,9 +332,29 @@ jQuery.fn.tmpl = function() {
 				var clone = jQuery( elem ).clone( true )
 					.removeAttr( "data-each" ).removeData( "each" )[0];
 
-				// Flag elements with the following attributes so that the attributes can be removed after templating 
-				jQuery( clone ).find("[data-if], [data-else-if], [data-else]").each(function() {
-					jQuery( this ).data( "toDelete", true );
+				// Prepend all conditional statements with a declaration of ret.value
+				// and ret.post and an assignment of their current values so that
+				// the conditional will still make sense even when outside of the
+				// data-each context
+				var conditionals = [ "data-if", "data-else-if", "data-else" ];
+
+				var declarations = "";
+				declarations += ( ret.pos ) ? "var " + ret.pos + " = " + JSON.stringify( pos ) + ";" : "";
+				declarations += ( ret.value ) ? "var " + ret.value + " = " + JSON.stringify( value ) + ";" : "";
+
+				for ( var i = 0; i < conditionals.length; i++ ) {
+					var conditional = conditionals[i];
+					jQuery( clone ).find( "[" + conditional + "]" ).each(function() {
+						var code = jQuery( this ).attr( conditional );
+						code = "(function() {  " + declarations + " return " + code + " })()";
+						jQuery( this ).attr( conditional, code );
+					});
+				}
+
+				// Do the same for graphie code
+				jQuery( clone ).find( ".graphie" ).andSelf().filter( ".graphie" ).each(function() {
+					var code = jQuery( this ).text();
+					jQuery( this ).text( declarations + code );
 				});
 
 				// Insert in the proper place (depends on whether the loops is the last of its siblings)

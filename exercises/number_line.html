@@ -1,77 +1,71 @@
 <!DOCTYPE html>
-<html data-require="math graphie word-problems">
+<html data-require="math graphie word-problems interactive">
 <head>
-	<meta charset="UTF-8" />
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 	<title>Number line</title>
 	<script src="../khan-exercise.js"></script>
 </head>
 <body>
 	<div class="exercise">
-	<div class="vars" >
-		<var id="MIDPOINT">randRange( -15, 15 )</var>
-		<var id="DISTANCE">randRange( -2, 2 )</var>
-		<var id="NUMBER">randRangeNonZero( max(MIDPOINT-5, MIDPOINT-5-DISTANCE),min(MIDPOINT+5, MIDPOINT+5-DISTANCE) )</var>
+	<div class="vars">
+		<var id="LOWER_BOUND">-5</var>
+		<var id="UPPER_BOUND">-1 * LOWER_BOUND</var>
+		<var id="NUMBER">randRangeNonZero( LOWER_BOUND, UPPER_BOUND )</var>
 	</div>
 	<div class="problems">
 		<div>
 			<div class="question">
-				<p data-if="DISTANCE !== 0">What number is <var>plural( abs( DISTANCE ), "position")</var> to the <span data-if="DISTANCE < 1">left</span><span data-else>right</span> of the orange dot? The distance between adjacent tick marks is 1.</p>
-				<p data-else>What number does the orange dot represent?</p>
+				<p>Drag the orange dot to <strong><var>NUMBER</var></strong>. The distance between adjacent tick marks is 1.</p>
 				<div class="graphie" id="number-line">
 					init({
-						range: [ [ MIDPOINT-6, MIDPOINT+6 ], [ -1, 1 ] ]
+						range: [ [LOWER_BOUND - 1, UPPER_BOUND + 1], [-1, 1] ]
 					});
 
-					line( [ MIDPOINT-5, 0 ], [ MIDPOINT+5, 0 ] );
-					for ( var x = MIDPOINT-5; x &lt;= MIDPOINT+5; x++ ) {
+					line( [ LOWER_BOUND, 0 ], [ UPPER_BOUND, 0 ] );
+					for ( var x = LOWER_BOUND; x &lt;= UPPER_BOUND; x++ ) {
 						line( [ x, -0.2 ], [ x, 0.2 ] );
 					}
-
 					style({ stroke: "#6495ED", strokeWidth: 3.5 });
-					line( [ MIDPOINT, -0.2], [MIDPOINT, 0.2]);
-					label( [ MIDPOINT, -0.53 ],  MIDPOINT, "center", { color: "#6495ED" });
+					line( [ 0, -0.2], [0, 0.2]);
+					label( [ 0, -0.53 ],  "0", "center", { color: "#6495ED" });
 
-					style({ stroke: "#FFA500", fill: "#FFA500" });
-					graph.orangeDot = circle( [ NUMBER, 0 ], 0.10 );
+					addMouseLayer();
+					this.movablePoint = addMovablePoint({ constraints: { constrainY: true }, snapX: 0.25 });
+					movablePoint.onMove = function( x, y ) {
+						if (x &lt; LOWER_BOUND || UPPER_BOUND &lt; x) {
+							return false; // don't allow the point to move past the bounds
+						}
+						jQuery("#solutionarea input").val( x );
+					};
 				</div>
 			</div>
-			<div class="solution" data-forms="integer"><var>NUMBER+DISTANCE</var></div>
+				<div class="solution" data-type="multiple">
+				<span>Move the orange dot to select your answer.</span>
+				<div class="sol" data-type="decimal" style="visibility:hidden"><var>NUMBER</var></div>
+			</div>
 
 			<div class="hints">
-				<p>We know where <code><var>MIDPOINT</var></code> is on this number line because it is labeled.</p>
-				<p>Numbers to the right of <code><var>MIDPOINT</var></code> are bigger, while numbers to the left of <code><var>MIDPOINT</var></code> are smaller.</p>
-				<div data-if="DISTANCE !== 0">
-					<p>We need to find the number represented by the blue dot, which is <var>plural( abs( DISTANCE ), "position")</var> to the <span data-if="DISTANCE < 1">left</span><span data-else>right</span> of the orange dot.</p>
+				<p>We know where 0 is on the number line because it is labeled.</p>
+				<p>Numbers to the left are smaller, and numbers to the right are bigger.</p>
+				<p>Numbers smaller than 0 are negative, and numbers bigger than 0 are positive.</p>
+				<div>
 					<div class="graphie" data-update="number-line">
-						style({ stroke: "#6495ED", fill: "#6495ED" });
-						graph.blueDot = circle( [ NUMBER+DISTANCE, 0 ], 0.10 );
+						style({ stroke: "#6495ED", fill: "#6495ED", strokeWidth: 3.5, arrows: "-&gt;" });
+						line( [ 0, 0 ], [ NUMBER, 0 ] );
+						movablePoint.visibleShape.toFront();
 					</div>
+					<p>The orange dot should be <var>plural( abs( NUMBER ), "position")</var> to the <span data-if="NUMBER &lt; 0">left</span><span data-else>right</span> of 0.</p>
 				</div>
 				<div>
-					<p>Starting from <code><var>MIDPOINT</var></code>, we move <code><var>abs( NUMBER-MIDPOINT+DISTANCE )</var></code> to the <span data-if="NUMBER-MIDPOINT+DISTANCE < 0">left</span><span data-else>right</span> to reach the <span data-if="DISTANCE !== 0">blue</span><span data-else>orange</span> dot.</p>
 					<div class="graphie" data-update="number-line">
-						var color = "#6495ED";
-						if ( DISTANCE === 0 ) {
-							color = "#FFA500";
-						}
-						style({ stroke: color, fill: color, strokeWidth: 3.5, arrows: "->" });
-						line( [ MIDPOINT, 0 ], [ NUMBER+DISTANCE, 0 ] );
-						graph.blueDot.toFront();
-					</div>
-				</div>
-				<div>
-					<p>Thus, the <span data-if="DISTANCE !== 0">blue</span><span data-else>orange</span> dot represents the number <code><var>NUMBER+DISTANCE</var></code>.</p>
-					<div class="graphie" data-update="number-line">
-						var color = "#6495ED";
-						if ( DISTANCE === 0 ) {
-							color = "#FFA500";
-						}
 						label( [ NUMBER, -0.53 ],  NUMBER, "center", { color: "#FFA500" });
-						label( [ NUMBER+DISTANCE, -0.53 ],  NUMBER+DISTANCE, "center", { color: color });
+						movablePoint.moveTo( NUMBER, 0 );
 					</div>
+					<p>The orange number shows where <var>NUMBER</var> is on the number line.</p>
 				</div>
 			</div>
 		</div>
+	</div>
 	</div>
 </body>
 </html>

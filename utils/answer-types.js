@@ -8,8 +8,11 @@ var inexactMessages = {
 Khan.answerTypes = Khan.answerTypes || {};
 
 jQuery.extend( Khan.answerTypes, {
-	text: function( solutionarea, solution, fallback, verifier ) {
-		var input = jQuery('<input type="text">');
+	text: function( solutionarea, solution, fallback, verifier, input ) {
+		if ( !input ) {
+			input = jQuery('<input type="text">');
+		}
+
 		jQuery( solutionarea ).append( input );
 
 		var correct = typeof solution === "object" ? jQuery( solution ).text() : solution;
@@ -28,7 +31,7 @@ jQuery.extend( Khan.answerTypes, {
 			// is empty and the fallback doesn't exist.
 			var val = input.val().length > 0 ?
 				input.val() :
-				fallback ?
+				(typeof fallback !== "undefined") ?
 					fallback + "" :
 					"";
 
@@ -45,16 +48,23 @@ jQuery.extend( Khan.answerTypes, {
 	},
 
 
+	graphic: function( solutionarea, solution, fallback ) {
+			var verifier = function( correct, guess ){
+					return Math.abs( correct - guess ) < 0.3;
+				}
+		return Khan.answerTypes.text( solutionarea, solution, fallback, verifier );
+	},
+
 	line: function( solutionarea, solution, fallback ) {
 
 		var verifier = function( correct, guess ){
 			var result = true;
-			for ( i = 0; i < 5; i++ ){
+			for ( var i = 0; i < 5; i++ ){
 				var sampleX = KhanUtil.randRange( -100, 100 );
 				if ( guess.match(/[A-W]|[a-w]|[y-z]|[Y-Z]/) !== null ){
 					return false;
-				}	
-			
+				}
+
 				var newGuess = guess
 						.replace( /\u2212/, "-" )
 						.replace( /(\d)(x)/, "$1 * $2" )
@@ -68,22 +78,21 @@ jQuery.extend( Khan.answerTypes, {
 				result = result &&  ( eval( newCorrect ) === eval( newGuess ) ) ;
 			}
 			return result;
-		}
+		};
 		verifier.examples = "An equation of a line, like 3(x+1)/2 or 2x + 1";
 		return Khan.answerTypes.text( solutionarea, solution, fallback, verifier );
 
-	}
-	,
+	},
 
 
-	number: function( solutionarea, solution, fallback, forms ) {
+	number: function( solutionarea, solution, fallback, accForms ) {
 		var options = jQuery.extend({
 			simplify: "required",
 			ratio: false,
 			maxError: Math.pow( 2, -42 ),
 			forms: "literal, integer, proper, improper, mixed, decimal"
 		}, jQuery( solution ).data());
-		var acceptableForms = ( forms || options.forms ).split(/\s*,\s*/);
+		var acceptableForms = ( accForms || options.forms ).split(/\s*,\s*/);
 
 		var fractionTransformer = function( text ) {
 			text = text
@@ -92,7 +101,10 @@ jQuery.extend( Khan.answerTypes, {
 				.replace( /\u2212/, "-" )
 
 				// Remove space after +, -
-				.replace( /([+-])\s+/g, "$1" );
+				.replace( /([+-])\s+/g, "$1" )
+
+				// Remove leading/trailing whitespace
+				.replace(/(^\s*)|(\s*$)/gi,"");
 
 				// Extract numerator and denominator
 			var match = text.match( /^([+-]?\d+)\s*\/\s*([+-]?\d+)$/ );
@@ -108,7 +120,7 @@ jQuery.extend( Khan.answerTypes, {
 					value: num / denom,
 					exact: simplified
 				} ];
-			} else if ( !isNaN( parsedInt ) ) {
+			} else if ( !isNaN( parsedInt ) && "" + parsedInt === text ) {
 				return [ {
 					value: parsedInt,
 					exact: true
@@ -145,9 +157,9 @@ jQuery.extend( Khan.answerTypes, {
 				},
 				example: (function() {
 					if ( options.simplify === "optional" ) {
-						return "a <em>proper</em> fraction, like <code>1/2</code> or <code>6/10</code>"
+						return "a <em>proper</em> fraction, like <code>1/2</code> or <code>6/10</code>";
 					} else {
-						return "a <em>simplified proper</em> fraction, like <code>3/5</code>"
+						return "a <em>simplified proper</em> fraction, like <code>3/5</code>";
 					}
 				})()
 			},
@@ -164,9 +176,9 @@ jQuery.extend( Khan.answerTypes, {
 				},
 				example: (function() {
 					if ( options.simplify === "optional" ) {
-						return "an <em>improper</em> fraction, like <code>10/7</code> or <code>14/8</code>"
+						return "an <em>improper</em> fraction, like <code>10/7</code> or <code>14/8</code>";
 					} else {
-						return "a <em>simplified improper</em> fraction, like <code>7/4</code>"
+						return "a <em>simplified improper</em> fraction, like <code>7/4</code>";
 					}
 				})()
 			},
@@ -218,8 +230,9 @@ jQuery.extend( Khan.answerTypes, {
 
 					// Replace unicode minus sign with hyphen
 					text = text.replace( /\u2212/, "-" );
+					text = text.replace( /[ \(\)]/g, "");
 
- 					if ( match = text.match( /^log\(\s*(\S+)\s*\)$/i ) ) {
+					if ( match = text.match( /^log\s*(\S+)\s*$/i ) ) {
 						possibilities = forms.decimal.transformer( match[1] );
 					} else if ( text === "0") {
 						possibilities = [ { value: 0, exact: true } ];
@@ -246,6 +259,15 @@ jQuery.extend( Khan.answerTypes, {
 					return transformed;
 				},
 				example: "a percent, like <code>12.34\\%</code>"
+			},
+
+			dollar: {
+				transformer: function( text ) {
+					text = jQuery.trim( text ).replace( '$', '' );
+
+					return forms.decimal.transformer( text );
+				},
+				example: "a money amount, like <code>$2.75</code>"
 			},
 
 			mixed: {
@@ -285,6 +307,9 @@ jQuery.extend( Khan.answerTypes, {
 
 							// Replace unicode minus sign with hyphen
 							.replace( /\u2212/, "-" )
+
+							// Remove space after +, -
+							.replace( /([+-])\s+/g, "$1" )
 
 							// Remove commas
 							.replace( /,\s*/g, "" )
@@ -329,15 +354,15 @@ jQuery.extend( Khan.answerTypes, {
 			correct = jQuery.trim( correct );
 			guess = jQuery.trim( guess );
 
-			correctFloat = parseFloat( correct );
+			var correctFloat = parseFloat( correct );
 			var ret = false;
 
 			jQuery.each( acceptableForms, function( i, form ) {
 				var transformed = forms[ form ].transformer( jQuery.trim( guess ) );
 
-				for ( var i = 0, l = transformed.length; i < l; i++ ) {
-					var val = transformed[ i ].value;
-					var exact = transformed[ i ].exact;
+				for ( var j = 0, l = transformed.length; j < l; j++ ) {
+					var val = transformed[ j ].value;
+					var exact = transformed[ j ].exact;
 
 					if ( typeof val === "string" &&
 							correct.toLowerCase() === val.toLowerCase() ) {
@@ -368,7 +393,13 @@ jQuery.extend( Khan.answerTypes, {
 			}
 		});
 
-		return Khan.answerTypes.text( solutionarea, solution, fallback, verifier );
+		var input;
+
+		if ( typeof userExercise !== "undefined" && userExercise.tablet ) {
+			input = jQuery("<input type='number'/>");
+		}
+
+		return Khan.answerTypes.text( solutionarea, solution, fallback, verifier, input );
 	},
 
 	regex: function( solutionarea, solution, fallback ) {
@@ -418,12 +449,12 @@ jQuery.extend( Khan.answerTypes, {
 			inteValid();
 			radValid();
 
-			var inteGuess = parseFloat( inteGuess );
-			var radGuess = parseFloat( radGuess );
+			inteGuess = parseFloat( inteGuess );
+			radGuess = parseFloat( radGuess );
 
 			ret.guess = [ inteGuess, radGuess ];
 
-			var simplified = inteGuess === ans[0] && radGuess == ans[1];
+			var simplified = inteGuess === ans[0] && radGuess === ans[1];
 			var correct = Math.abs( inteGuess ) * inteGuess * radGuess === ansSquared;
 
 			if ( correct ) {
@@ -450,7 +481,7 @@ jQuery.extend( Khan.answerTypes, {
 	},
 
 	multiple: function( solutionarea, solution ) {
-		var solutionarea = jQuery( solutionarea );
+		solutionarea = jQuery( solutionarea );
 		// here be dragons
 		solutionarea.append( jQuery( solution ).clone().contents().tmpl() );
 
@@ -507,7 +538,215 @@ jQuery.extend( Khan.answerTypes, {
 			});
 		};
 
-		ret.examples = solutionarea.find( ".example" ).remove()
+		ret.showCustomGuess = function( guess ) {
+			guess = jQuery.extend( true, [], guess );
+
+			solutionarea.find( ".sol" ).each(function() {
+				var validator = jQuery( this ).data( "validator", validator );
+
+				if ( validator != null ) {
+					// Shift regardless of whether we can show the interactive guess
+					var next = guess.shift();
+
+					if ( jQuery.isFunction( validator.showCustomGuess ) ) {
+						validator.showCustomGuess( next );
+					}
+				}
+			});
+		};
+
+		// If there's only a single sol in the multiple and there aren't any examples defined,
+		// use the examples from the single sol element.
+		if ( solutionarea.find( ".sol" ).length === 1 && solutionarea.find( ".example" ).length === 0 ) {
+			ret.examples = solutionarea.find( ".sol" ).first().data( "validator" ).examples;
+		} else {
+			ret.examples = solutionarea.find( ".example" ).remove()
+				.map(function(i, el) {
+					return jQuery( el ).html();
+				});
+		}
+		ret.solution = solutionArray;
+
+		return ret;
+	},
+
+	set: function( solutionarea, solution ) {
+		var solutionarea = jQuery( solutionarea ),
+			showUnused = (jQuery( solution ).data( "showUnused" ) === true);
+		solutionarea.append(jQuery(solution).find(".input-format").clone().contents().tmpl());
+
+		var validatorArray = [],
+			solutionArray = [],
+			inputArray = [];
+			checkboxArray = [];
+
+		// Fill validatorArray[] with validators for each acceptable answer
+		jQuery(solution).find(".set-sol").clone().each(function() {
+			var type = jQuery( this ).data( "type" );
+			type = type != null ? type : "number";
+			// We don't want the validators to build the solutionarea. The point
+			// here is to decouple the UI from the validator. Passing null
+			// generally works.
+			var solarea = null;
+			if (type == "multiple") {
+				// Multiple is special. It has dragons that don't like null. This distracts them.
+				solarea = jQuery( this ).clone().empty();
+			}
+			var sol = jQuery( this ).clone(),
+				fallback = sol.data( "fallback" ),
+				validator = Khan.answerTypes[type]( solarea, sol, fallback );
+
+			validatorArray.push(validator);
+			solutionArray.push(validator.solution);
+		});
+
+
+		// Create throwaway validators for each "entry" on the answer form
+		// and store the resulting UI fragments in inputArray[]
+		solutionarea.find( ".entry" ).each(function() {
+			var input = jQuery( this ),
+				type = jQuery( this ).data( "type" );
+			type = type != null ? type : "number";
+
+			// We're just using this validator to paint the UI, so we pass it a bogus solution.
+			Khan.answerTypes[type]( input, jQuery(this).clone().empty(), null );
+			inputArray.push(jQuery(input).find(":input"));
+		});
+
+		// Also keep track of any checkboxes
+		solutionarea.find( ".checkbox" ).each(function() {
+			var sol = jQuery( this ).clone();
+			var solarea = jQuery( this ).empty(),
+				input = jQuery( '<input type="checkbox"/>' );
+			solarea.append( input );
+			var solution = KhanUtil.tmpl.getVAR( sol.text() );
+			jQuery( input ).data( "solution", solution );
+			checkboxArray.push( input );
+			solutionArray.push( solution );
+		});
+
+		var ret = function() {
+			var valid = true,
+				// Make a copy of the validators, so we can delete each as it's used
+				unusedValidators = validatorArray.slice(0),
+				allguesses = [];
+
+			// iterate over each input area
+			jQuery( inputArray ).each( function() {
+				var guess = [],
+					correct = false,
+					validatorIdx = 0;
+
+				// Scrape the raw inputs out of the UI elements
+				jQuery( this ).each( function() {
+					guess.push( jQuery( this ).val() );
+				});
+
+				if (guess.length == 1) {
+					allguesses.push( guess[0] );
+				} else {
+					allguesses.push( guess );
+				}
+
+				// Iterate over each validator
+				while (validatorIdx < unusedValidators.length && !correct) {
+					// Push the actual guess into the validator's hidden input
+					unusedValidators[validatorIdx].showGuess( guess );
+					// And validate it
+					correct = unusedValidators[validatorIdx]();
+					++validatorIdx;
+				}
+
+				if (correct) {
+					// remove the matching validator from the list so duplicate inputs don't match
+					unusedValidators.splice(validatorIdx-1, 1);
+				} else if (jQuery.trim( guess.join( "" ) ) !== "") {
+					// Not correct and not empty; the entire answer is wrong :(
+					valid = false;
+				}
+
+			});
+
+			if ((validatorArray.length > inputArray.length)) {
+				// if there are more valid answers than inputs, make sure that as many answers as possible were entered
+				if (unusedValidators.length > validatorArray.length - inputArray.length) {
+					valid = false;
+				}
+			// otherwise, make sure every possible answer was entered
+			} else if (unusedValidators.length > 0) {
+				valid = false;
+			}
+
+			// now check that all the checkboxes are selected appropriately
+			jQuery( checkboxArray ).each( function() {
+				var guess = jQuery( this ).is( ":checked" ),
+					answer = jQuery( this ).data( "solution" ),
+					label_text = jQuery( this ).closest( "label" ).text();
+				if (label_text === "") {
+					label_text = "checked";
+				}
+				// un-checked boxes are recorded as "" to prevent the question from
+				// being graded if submit is clicked before anything is entered
+				allguesses.push( guess ? label_text : "" );
+				if ( guess != answer ) {
+					valid = false;
+				}
+			});
+
+			ret.guess = allguesses;
+
+			// If data-show-unused="true" is set and the question was answered correctly,
+			// show the list of additional answers (if any) that would also have been accepted.
+			//
+			// TODO: Ideally this should be shown below the green button so the button doesn't jump around.
+			//       perhaps reuse the check-answer-message area
+			if (showUnused && valid && unusedValidators.length) {
+				var otherSolutions = jQuery( "<p>" ).appendTo(solutionarea);
+				jQuery( unusedValidators ).each( function( i, el ) {
+					other_solution = el.solution;
+					if (i > 0) {
+						jQuery( "<span>" ).text(" and ").appendTo( otherSolutions );
+					}
+					jQuery.each( other_solution, function( i, el ) {
+						if (jQuery.isArray( el )) {
+							var subAnswer = jQuery( "<span>" ).appendTo( otherSolutions );
+							jQuery.each( el, function( i, el ) {
+								jQuery( "<span>" ).text( el + " " ).appendTo( subAnswer );
+							} );
+						} else {
+							jQuery( "<span> " ).text( el + " " ).appendTo( otherSolutions );
+						}
+					} );
+				});
+				if (unusedValidators.length == 1) {
+					jQuery( "<span>" ).text(" is also correct").appendTo( otherSolutions );
+				} else {
+					jQuery( "<span>" ).text(" are also correct").appendTo( otherSolutions );
+				}
+			}
+
+			return valid;
+		};
+
+		ret.showGuess = function( guess ) {
+			guess = jQuery.extend( true, [], guess );
+			jQuery( inputArray ).each(function() {
+				var item = guess.shift();
+				if ( item instanceof Array ) {
+					jQuery( this ).each( function() {
+						jQuery(this).val( item.shift() );
+					});
+				} else {
+					this.val( item );
+				}
+			});
+			solutionarea.find( ".checkbox input:checkbox" ).each(function() {
+				var ans = guess.shift();
+				jQuery( this ).attr('checked', ans !== undefined && ans !== "");
+			});
+		};
+
+		ret.examples = solution.find( ".example" ).remove()
 			.map(function(i, el) {
 				return jQuery( el ).html();
 			});
@@ -517,8 +756,14 @@ jQuery.extend( Khan.answerTypes, {
 	},
 
 	radio: function( solutionarea, solution ) {
+		var extractRawCode = function( solution ) {
+			return jQuery( solution ).find('.value').clone()
+				.find( ".MathJax" ).remove().end()
+				.find( "code" ).removeAttr( "id" ).end()
+				.html();
+		};
 		// Without this we get numbers twice and things sometimes
-		var solutionText = jQuery( solution ).clone().find( ".MathJax" ).remove().end().text();
+		var solutionText = extractRawCode( solution );
 
 		var list = jQuery("<ul></ul>");
 		jQuery( solutionarea ).append(list);
@@ -535,8 +780,9 @@ jQuery.extend( Khan.answerTypes, {
 
 		// Optionally include none of the above as a choice
 		var showNone = choices.data("none");
+		var noneIsCorrect = false;
 		if ( showNone ) {
-			var noneIsCorrect = KhanUtil.rand(numChoices) === 0;
+			noneIsCorrect = KhanUtil.rand(numChoices) === 0;
 			numChoices -= 1;
 		}
 
@@ -576,7 +822,7 @@ jQuery.extend( Khan.answerTypes, {
 				dupes[ choiceTextSquish ] = true;
 
 				// i == 0 is the solution except in category mode; skip it when none is correct
-				if ( !( noneIsCorrect && i == 0 ) || isCategory ) {
+				if ( !( noneIsCorrect && i === 0 ) || isCategory ) {
 					shownChoices.push( choice );
 				}
 			}
@@ -625,8 +871,7 @@ jQuery.extend( Khan.answerTypes, {
 					});
 			}
 
-			ret.guess = jQuery.trim(
-				choice.closest("li").clone().find(".MathJax").remove().end().text() );
+			ret.guess = jQuery.trim( extractRawCode(choice.closest("li")) );
 
 			return choice.val() === "1";
 		};
@@ -635,7 +880,7 @@ jQuery.extend( Khan.answerTypes, {
 			list.find( 'input:checked' ).prop( 'checked', false);
 
 			var li = list.children().filter( function() {
-				return jQuery.trim( jQuery( this ).clone().find(".MathJax").remove().end().text() ) === guess;
+				return jQuery.trim( extractRawCode(this) ) === guess;
 			} );
 			li.find( "input[name=solution]" ).prop( "checked", true );
 		};
@@ -688,6 +933,56 @@ jQuery.extend( Khan.answerTypes, {
 		];
 
 		return Khan.answerTypes.text( solutionarea, solution, fallback, verifier );
+	},
+
+	custom: function( solutionarea, solution ) {
+		var isTimeline = !( solutionarea.attr( "id" ) === "solutionarea" || solutionarea.parent().attr( "id" ) === "solutionarea" );
+		var guessCorrect = false;
+		solution.find( ".instruction" ).appendTo( solutionarea );
+		var guessCode = solution.find( ".guess" ).text();
+
+		var validatorCode = solution.find( ".validator-function" ).text();
+		var validator = function( guess ) {
+			var code = "(function() { var guess = " + JSON.stringify( guess ) + ";" + validatorCode + "})()";
+			return KhanUtil.tmpl.getVAR( code, KhanUtil.currentGraph );
+		};
+
+		ret = function() {
+			ret.guess = KhanUtil.tmpl.getVAR( guessCode, KhanUtil.currentGraph );
+			if ( isTimeline ) {
+				return guessCorrect;
+			} else {
+				var result = validator( ret.guess );
+				if ( result === "" ) {
+					ret.guess = "";
+				}
+				return result;
+			}
+		};
+
+		ret.examples = solution.find( ".example" ).map(function(i, el) {
+			return jQuery( el ).html();
+		});
+		ret.solution = "custom";
+		var showGuessSolutionCode = jQuery( solution ).find( ".show-guess-solutionarea" ).text() || "";
+		ret.showGuess = function( guess ) {
+			if ( isTimeline ) {
+				guessCorrect = validator( guess );
+				jQuery( solutionarea ).empty();
+				jQuery( solutionarea ).append( guessCorrect === true ? "Answer correct" : "Answer incorrect" );
+			} else {
+				var code = "(function() { var guess = " + ( JSON.stringify( guess ) || "[]" ) + ";" + showGuessSolutionCode + "})()";
+				KhanUtil.tmpl.getVAR( code, KhanUtil.currentGraph );
+			}
+		};
+
+		var showGuessCode = jQuery( solution ).find( ".show-guess" ).text();
+		ret.showCustomGuess = function( guess ) {
+			var code = "(function() { var guess = " + JSON.stringify( guess ) + ";" + showGuessCode + "})()";
+			KhanUtil.tmpl.getVAR( code, KhanUtil.currentGraph );
+		};
+
+		return ret;
 	}
 } );
 
