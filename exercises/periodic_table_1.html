@@ -12,7 +12,6 @@
               <var id="ELEMENT">randFromArray(elements)</var>
               <var id="NAME">ELEMENT.name</var>
               <var id="SYMBOL">ELEMENT.symbol</var>
-              <var id="SYMBOL">ELEMENT.symbol</var>
             </div>
 
             <div class="problems">
@@ -24,11 +23,16 @@
                       var graph = KhanUtil.currentGraph;
 
                       graph.init({
-                        range: [[0, 50], [0, 50]]
+                        range: [[0, 10], [0, 10]],
+                        scale: [20,20]
                       });
+                      
+                      var e = ELEMENT;
 
-                      var periodic = new PeriodicTable();
-                      periodic.showPeriodicTable();
+                      graph.label( [7, 9], e.name + " - " + e.symbol , { color: KhanUtil.BLUE} );
+                      graph.label( [7, 8], "Atomic Number: " + e.atomic_number, { color: KhanUtil.BLUE} );
+                      graph.label( [7, 7], "Atomic Mass: " + e.atomic_weight, { color: KhanUtil.BLUE} );
+
                     </div>
                   </div>
                   <p class="solution"><var>ELEMENT.atomic_number</var></p>
